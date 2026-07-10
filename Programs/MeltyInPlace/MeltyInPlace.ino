@@ -77,8 +77,9 @@
 
 #define DEADBAND 20         // microseconds of stick jitter to ignore around center
 
-#define SPEED_LIMIT 0.25  // % of full throttle/steering range allowed in 2WD mode
+#define SPEED_LIMIT_DIFFERENTIAL 0.25  // % of full throttle/steering range allowed in 2WD mode
                                  // (1.00 = full range, no limit)
+#define SPEED_LIMIT_MELTY 1
 
 // // Converts a raw stick-range value (post-mix) into an ESC pulse, passed straight through.
 // int passThroughMap(int mixedValue) {
@@ -114,7 +115,6 @@ Servo leftESC;
 Servo rightESC;
 CRGB leds[NUM_LEDS];
 
-
 uint16_t channels[14];
 unsigned long lastValidFrameMs = 0;
 const unsigned long FAILSAFE_TIMEOUT_MS = 500; // if no frame in this long, stop motors
@@ -129,8 +129,8 @@ void differentialDrive() {
   int steering = applyDeadband(steeringRaw);
   int throttle = applyDeadband(throttleRaw);
 
-  steering = steering * SPEED_LIMIT;
-  throttle = throttle * SPEED_LIMIT;
+  steering = steering * SPEED_LIMIT_DIFFERENTIAL;
+  throttle = throttle * SPEED_LIMIT_DIFFERENTIAL;
 
   int leftMix  = STICK_NEUTRAL + throttle + steering;
   int rightMix = STICK_NEUTRAL + throttle - steering;
@@ -140,11 +140,13 @@ void differentialDrive() {
 }
 
 void meltyDrive() {
-  int throttle = (channels[2] - STICK_MIN)/2; // Bring to 0-500 range
-  int throttleConstrained = applyDeadband(throttle) * 0.5; // Apply deadband and speed limit
+  int throttleLeft = (channels[2] - STICK_MIN)/2; // Bring to 0-500 range
+  int throttleRight = (channels[2] - STICK_MIN)/2;
+  int throttleConstrainedLeft = applyDeadband(throttleLeft) * SPEED_LIMIT_MELTY; // Apply deadband and speed limit
+  int throttleConstrainedRight = applyDeadband(throttleRight) * SPEED_LIMIT_MELTY;
 
-  leftESC.writeMicroseconds(STICK_NEUTRAL + throttleConstrained);
-  rightESC.writeMicroseconds(STICK_NEUTRAL - throttleConstrained);
+  leftESC.writeMicroseconds(STICK_NEUTRAL + throttleConstrainedLeft);
+  rightESC.writeMicroseconds(STICK_NEUTRAL - throttleConstrainedRight - 29.36605);
 }
 
 void ledBlue() {
@@ -231,4 +233,3 @@ void loop() {
     rightESC.writeMicroseconds(STICK_NEUTRAL);
   }
 }
-
